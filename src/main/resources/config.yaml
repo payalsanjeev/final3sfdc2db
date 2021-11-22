@@ -1,0 +1,23 @@
+database:
+  host: "localhost"
+  port: "3306"
+  username: "root"
+  password: ""
+  dbname: "tempdb"
+  
+salesforce:
+  username: "payal@capg.com"
+  password: "lil9@7ko01ok"
+  securitytoken: "8TEU8cWOULoGBOxuLjCi6pmv"
+  
+listener:
+  port: "8081"
+  
+requestDB:
+  host: "localhost"
+  port: "8082"
+  
+requestSF:
+  host: "localhost"
+  port: "8083"
+  

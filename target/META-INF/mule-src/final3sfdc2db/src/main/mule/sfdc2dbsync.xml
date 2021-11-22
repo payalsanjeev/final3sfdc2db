@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd">
+	<flow name="mainFlow" doc:id="3bc52eb8-97aa-4192-9321-942551200ea7" initialState="stopped">
+		<scheduler doc:name="Scheduler" doc:id="0c4aae9b-0779-4984-a1fd-48cc8dfd070e" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="10" startDelay="5" timeUnit="SECONDS"/>
+			</scheduling-strategy>
+		</scheduler>
+		<os:retrieve doc:name="State" doc:id="6ddbcd8f-4746-45ef-9eed-ef100897e956" key="State" target="State" objectStore="Shedular_Status">
+			<os:default-value ><![CDATA[DatabaseToSalesforce]]></os:default-value>
+		</os:retrieve>
+		<choice doc:name="Choice" doc:id="e5f199a5-fd96-4706-943f-c7ae672cf520" >
+			<when expression="#[vars.State != 'running' and vars.State == 'SalesforceToDatabase']">
+				<os:store doc:name="Store" doc:id="a4e8431c-5489-4cc1-9841-b102b756e888" key="State" objectStore="Shedular_Status">
+					<os:value ><![CDATA[#['running']]]></os:value>
+				</os:store>
+				<flow-ref doc:name="Flow Reference" doc:id="b336ccb0-1400-4343-8814-5ee58d9084eb" name="querySalesforceFlow" />
+				<flow-ref doc:name="SalesforceToDatabase" doc:id="3b11c850-8c0c-42e5-8eae-e818ddffd65e" name="syncFromSalesforceToDatabase" />
+				<logger level="INFO" doc:name="Logger" doc:id="7f450ae1-7202-4a02-b740-73ad036c7d55" />
+			
+</when>
+			<when expression="#[vars.State != 'running' and vars.State == 'DatabaseToSalesforce']">
+				<os:store doc:name="Store" doc:id="c8a0d610-474b-47f2-99b4-cc537e277cf0" key="State" objectStore="Shedular_Status">
+					<os:value ><![CDATA[#['running']]]></os:value>
+				</os:store>
+				<flow-ref doc:name="Flow Reference" doc:id="b99fefd2-60f8-45d6-a501-9c08fc0cefe7" name="queryDatabaseFlow" />
+				<flow-ref doc:name="DatabaseToSalesforce" doc:id="be96282b-9467-49ed-a570-e32ef5287967" name="syncFromDatabaseToSalesforce" />
+				<logger level="INFO" doc:name="Logger" doc:id="d384c404-9287-45ab-aa08-0c2c5d6c841d" />
+			
+</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Logger" doc:id="9c979371-0875-44d5-9b20-aff323007cb1" />
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="querySalesforceFlow" doc:id="a75c7e13-ae24-49f7-a5e2-e254ad5abc36" >
+		<os:retrieve doc:name="Retrieve lastQueryDateSfdc" doc:id="9f84cd5e-93ee-4d24-addf-7565241e3ea1" key="watermark" objectStore="watermarkStoreSFDC" target="lastQueryDateSfdc">
+			<os:default-value ><![CDATA[#[(now() - |PT30M10S|) as DateTime as String {format: "yyyy-MM-dd'T'HH:mm:ssZ"}]]]></os:default-value>
+		</os:retrieve>
+		<http:request method="GET" doc:name="getSFAccount" doc:id="0db1ed4c-f8d9-427f-a85a-cd94bd18efd1" path="/getsfaccount" config-ref="HTTP_Request_configuration_SF">
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	lastModifiedDate : vars.lastQueryDateSfdc
+}]]]></http:query-params>
+		</http:request>
+		<ee:transform doc:name="Transform Message" doc:id="b2e9a13a-5c10-4147-bebc-6905d1cf22bb" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="2cc9f137-3180-454e-a64f-d883c3ae224a" message="#['Input SFDC data: ' ++ write(payload, 'application/json', {'indent': false})]"/>
+		<os:store doc:name="Store lastQueryDateSfdc" doc:id="bd006765-cd54-45fa-9ec6-dd74055d8e5f" objectStore="watermarkStoreSFDC" key="watermark" failOnNullValue="false">
+			<os:value ><![CDATA[#[max(payload map $.LastModifiedDate)]]]></os:value>
+		</os:store>
+	</flow>
+	<flow name="queryDatabaseFlow" doc:id="e7faf363-8bf3-4002-bb41-904a04fa5b42" >
+		<os:retrieve doc:name="Retrieve lastQueryDateDB" doc:id="09890059-6e96-4f05-ac1e-4d83df5c9bd6" key="watermark" objectStore="watermarkStoreDB" target=" lastQueryDateDB">
+			<os:default-value ><![CDATA[#[(now() - |PT30M10S|) as DateTime as String {format: "yyyy-MM-dd'T'HH:mm:ss+05:30"}]]]></os:default-value>
+
+		</os:retrieve>
+		<http:request method="GET" doc:name="getDBAccount" doc:id="9fea55e5-be45-410f-9ce6-2da899f59251" path="/getdbaccount" config-ref="HTTP_Request_configuration_DB">
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	lastUpdate : (vars.lastQueryDateDB as DateTime as String {format: "yyyy-MM-dd'T'HH:mm:ss+05:30"})
+}]]]></http:query-params>
+		</http:request>
+		<ee:transform doc:name="Transform Message" doc:id="ffc25a74-02ed-4c38-b6c9-f852f3663a25" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="93cea9b2-aaad-4f87-85b5-13048e3099c0" message="#['Input DB data: ' ++ write(payload, 'application/json', {'indent': false})]"/>
+		<os:store doc:name="Store lastQueryDateDB" doc:id="23b64ff0-ecb0-4978-bdd8-222de9bd4dd6" key="watermark" objectStore="watermarkStoreDB" failOnNullValue="false">
+			<os:value ><![CDATA[#[max(payload map $.LastModifiedDate)]]]></os:value>
+		</os:store>
+	</flow>
+	<flow name="endpointsFlow" doc:id="08e020ce-13b4-4597-a8e0-094e5502acf2" >
+		<http:listener doc:name="Listener" doc:id="b8d0e9fd-7856-4eb7-ab1f-4966a7dcb34e" config-ref="HTTP_Listener_config_Sync" path="/sync" />
+		<async doc:name="Async" doc:id="292c6aeb-fe0c-4210-9082-8a5fdf149dfa" >
+			<scripting:execute engine="groovy" doc:id="bd547813-6397-48e4-a87b-8212c6b47c98" doc:name="Execute" >
+				<scripting:code ><![CDATA[flow= registry.lookupByName("mainFlow").get();
+if(!flow.isStarted())
+flow.start();]]></scripting:code>
+			</scripting:execute>
+		</async>
+		<set-payload value="#['Synchronization started!!']" doc:name="Set Payload" doc:id="8d88fbac-7240-490e-97ba-fa6783b99002" mimeType="application/json" />
+	</flow>
+
+
+</mule>

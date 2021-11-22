@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<flow name="syncFromDatabaseToSalesforce" doc:id="06272be4-d0e9-4559-bdbf-0413c65c6922" >
+		<batch:job jobName="syncFromDatabaseToSalesforceBatch" doc:id="0efab981-61de-4909-9a1c-bfe323fbfd5f" >
+			<batch:process-records >
+				<batch:step name="upsertAccountInSalesforce" doc:id="d4227201-26ea-49a5-997a-ee1e38a9cf86">
+					<ee:transform doc:name="Transform Message" doc:id="5601ffd2-cc0e-47c7-8c10-0e96be20c9b7" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+[payload]]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+					<ee:transform doc:name="Transform Message" doc:id="e8c331b2-abc3-4baa-a93b-74206b841b10">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	BillingPostalCode: payload01.BillingPostalCode,
+	Name: payload01.Name,
+	Type: payload01.Type,
+	Id: payload01.SalesforceId,
+	AccountNumber: payload01.AccountNumber,
+	AccountSource: payload01.AccountSource,
+	AnnualRevenue: payload01.AnnualRevenue,
+	AccountCurrency: payload01.AccountCurrency,
+	BillingCity: payload01.BillingCity,
+	BillingCountry: payload01.BillingCountry,
+	BillingState: payload01.BillingState,
+	BillingStreet: payload01.BillingStreet,
+	Description: payload01.Description,
+	Fax: payload01.Fax,
+	Industry: payload01.Industry,
+	NumberOfEmployees: payload01.NumberOfEmployees,
+	OwnerId: payload01.OwnerId,
+	Ownership: payload01.Ownership,
+	ParentId: payload01.ParentId,
+	Phone: payload01.Phone,
+	Rating: payload01.Rating,
+	ShippingCity: payload01.ShippingCity,
+	ShippingCountry: payload01.ShippingCountry,
+	ShippingPostalCode: payload01.ShippingPostalCode,
+	ShippingState: payload01.ShippingState,
+	ShippingStreet: payload01.ShippingStreet,
+	Sic: payload01.Sic,
+	SicDesc: payload01.SicDesc,
+	ExtId__c: payload01.Id,
+	Site: payload01.Site,
+	TickerSymbol: payload01.TickerSymbol,
+	Website: payload01.Website
+	
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+					<http:request method="PUT" doc:name="upsertSFAccount" doc:id="e63f85ab-75a3-458c-841b-9bd51990902c" path="/upsertsfaccount" config-ref="HTTP_Request_configuration_SF"/>
+					<logger level="INFO" doc:name="Logger" doc:id="2aed3fe4-69b3-439f-a202-e0ff35b20421" message="#[payload]" />
+				</batch:step>
+			</batch:process-records>
+			<batch:on-complete >
+				<os:store doc:name="SalesforceToDatabaseState" doc:id="3d1b43f3-7eee-43e1-95b7-6e746ff3987e" key="State" objectStore="Shedular_Status" >
+					<os:value ><![CDATA[SalesforceToDatabase]]></os:value>
+				</os:store>
+			</batch:on-complete>
+		</batch:job>
+	</flow>
+	<flow name="syncFromSalesforceToDatabase" doc:id="699f9c0e-f388-4ecc-8a78-16d70f540553" >
+		<batch:job jobName="syncFromSalesforceToDatabaseBatch" doc:id="04ff1b87-a415-4cc0-8c0c-6a31c9c37fbe" >
+			<batch:process-records >
+				<batch:step name="Batch_Step" doc:id="40e7e9f4-181f-47cc-8f13-723f0d4ab29c" >
+					<set-variable value="#[payload.ExtId__c]" doc:name="Set Variable" doc:id="e2a5b436-a29b-430b-8a50-68c6cd136833" variableName="extId"/>
+				</batch:step>
+				<batch:step name="insertAccountInDatabase" doc:id="6d069e39-44ef-4e91-85e4-08f4d340b157" acceptExpression="vars.extId==null">
+					<ee:transform doc:name="Transform Message" doc:id="097b5aba-57d5-485a-a0dc-e53db9e67032" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+					<http:request method="POST" doc:name="insertRequest" doc:id="24503f03-b18b-4a92-8db7-25deca93424d" path="/insertdbaccount" config-ref="HTTP_Request_configuration_DB"/>
+					<logger level="INFO" doc:name="Logger" doc:id="37dc90d7-a879-4389-95a1-5ba3f808edca" message="#[payload]"/>
+				</batch:step>
+				<batch:step name="updateAccountInDatabase" doc:id="51dbd76b-ac60-4063-8988-650f4abf3e84">
+					<ee:transform doc:name="Transform Message" doc:id="06c3c698-b0e7-40c2-a59a-52fddabdea04">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+					<http:request method="PUT" doc:name="updateRequest" doc:id="ace4b620-dc69-4c0b-afcd-e079f0a09cf3" path="/updatedbaccount" config-ref="HTTP_Request_configuration_DB"/>
+					<logger level="INFO" doc:name="Logger" doc:id="1790a036-e794-43c1-8479-26ff2f7fc1f9" message="#[payload]" />
+				</batch:step>
+			
+</batch:process-records>
+			<batch:on-complete >
+				<os:store doc:name="DatabaseToSalesforceState" doc:id="839d068c-f760-4c4f-98c9-31c499c2fa49" key="State" objectStore="Shedular_Status" >
+					<os:value ><![CDATA[DatabaseToSalesforce]]></os:value>
+				</os:store>
+			</batch:on-complete>
+		</batch:job>
+	</flow>
+</mule>

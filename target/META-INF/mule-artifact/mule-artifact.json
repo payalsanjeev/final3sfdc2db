@@ -1,0 +1,32 @@
+{
+  "configs": [
+    "global.xml",
+    "sfdc2dbsync.xml",
+    "errorHandling.xml",
+    "bussinessLogic.xml"
+  ],
+  "secureProperties": [],
+  "redeploymentEnabled": true,
+  "name": "com.mycompany:final3sfdc2db:1.0.0-SNAPSHOT",
+  "minMuleVersion": "4.4.0",
+  "requiredProduct": "MULE_EE",
+  "classLoaderModelLoaderDescriptor": {
+    "id": "mule",
+    "attributes": {
+      "exportedPackages": [],
+      "exportedResources": [
+        "application-types.xml",
+        "bussinessLogic.xml",
+        "config.yaml",
+        "errorHandling.xml",
+        "global.xml",
+        "log4j2.xml",
+        "sfdc2dbsync.xml"
+      ]
+    }
+  },
+  "bundleDescriptorLoader": {
+    "id": "mule",
+    "attributes": {}
+  }
+}

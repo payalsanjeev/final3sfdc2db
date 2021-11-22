@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd">
+	<http:listener-config name="HTTP_Listener_config_Sync" doc:name="HTTP Listener config" doc:id="c1aabfc3-4328-464e-92f9-6189d8ea7c6a" >
+		<http:listener-connection host="0.0.0.0" port="${listener.port}" />
+	</http:listener-config>
+	<os:object-store name="Shedular_Status" doc:name="Object store" doc:id="5620fd1a-649c-4745-bbb4-2f7308ad955d" />
+	<os:object-store name="watermarkStoreDB" doc:name="Object store" doc:id="9a3c31bd-507f-4515-9d85-fdced384c309" />
+	<os:object-store name="watermarkStoreSFDC" doc:name="Object store" doc:id="6ca1018d-0802-425e-9580-293f594f93d1" />
+	<http:request-config name="HTTP_Request_configuration_DB" doc:name="HTTP Request configuration" doc:id="4d75fb27-b27b-4076-98ef-bc02b37d3766" basePath="/api" >
+		<http:request-connection host="${requestDB.host}" port="${requestDB.port}" />
+	</http:request-config>
+	<http:request-config name="HTTP_Request_configuration_SF" doc:name="HTTP Request configuration" doc:id="310d88bb-434b-44dc-a52a-331d5cd40bf4" basePath="/api" >
+		<http:request-connection host="${requestSF.host}" port="${requestSF.port}" />
+	</http:request-config>
+	<configuration-properties doc:name="Configuration properties" doc:id="a9509ecf-e4f2-4285-8a81-3e6ac909a959" file="config.yaml" />
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="1462a0ac-15e4-4cf1-8cdd-6d2e86dfb8e6" >
+		<db:my-sql-connection host="${database.host}" port="${database.port}" user="${database.username}" password="${database.password}" database="${database.dbname}" />
+	</db:config>
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="2da896b4-b489-425d-87a6-a17e5c59fc41" >
+		<salesforce:basic-connection username="${salesforce.username}" password="${salesforce.password}" securityToken="${salesforce.securitytoken}" />
+	</salesforce:sfdc-config>
+</mule>
